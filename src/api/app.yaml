@@ -1,0 +1,16 @@
+runtime: go112
+instance_class: F1
+
+automatic_scaling:
+  max_idle_instances: 1
+  max_instances: 1
+
+#api_version: go1.12
+
+#   env_variables:
+#      APP_MODE: "prod"
+#    - url: /.*
+#    secure: always
+#    script: auto
+#    max_pending_latency: 500ms
+#    max_concurrent_requests: 20
