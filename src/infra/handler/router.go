@@ -16,7 +16,7 @@ func Router() *echo.Echo {
 	e.HideBanner = true
 
 	e.Use(middleware.Recover())
-
+	e.Use(middleware.CORS())
 	e.GET("/", func(c echo.Context) error {
 		return c.JSONPretty(
 			http.StatusOK,
@@ -25,8 +25,9 @@ func Router() *echo.Echo {
 		)
 	})
 
-	mapGeneratorAPI := &MapGeneratorAPI{}
+	mapGeneratorAPI := NewMapGeneratorAPI()
 	mapGenerator := e.Group("/map")
-	mapGenerator.GET("", mapGeneratorAPI.GetMap)
+	mapGenerator.GET("", mapGeneratorAPI.Generate)
+	mapGenerator.GET("/:id", mapGeneratorAPI.Get)
 	return e
 }

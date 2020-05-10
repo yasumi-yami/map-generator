@@ -1,106 +1,139 @@
 package service
 
-import (
-	"github.com/sirupsen/logrus"
-)
-
 const (
 	top    = 0
 	right  = 1
 	bottom = 2
 	left   = 3
+	tr     = 4
+	br     = 5
+	bl     = 6
+	tl     = 7
 	asc    = 0
 	desc   = 1
 )
 
-var planePosition = map[int]map[int][]int{
-	0: {
-		top:    {3, bottom, asc},
-		right:  {5, left, asc},
-		bottom: {1, top, asc},
-		left:   {4, right, asc},
-	},
-	1: {
-		top:    {0, bottom, asc},
-		right:  {5, bottom, asc},
-		bottom: {2, top, asc},
-		left:   {4, bottom, asc},
-	},
-	2: {
-		top:    {1, bottom, asc},
-		right:  {5, right, desc},
-		bottom: {3, top, asc},
-		left:   {4, left, desc},
-	},
-	3: {
-		top:    {2, bottom, asc},
-		right:  {5, top, desc},
-		bottom: {0, top, asc},
-		left:   {4, top, asc},
-	},
-	4: {
-		top:    {3, left, asc},
-		right:  {0, left, asc},
-		bottom: {1, left, desc},
-		left:   {2, left, desc},
-	},
-	5: {
-		top:    {3, right, desc},
-		right:  {2, right, desc},
-		bottom: {1, right, asc},
-		left:   {0, right, asc},
-	},
-}
+// SetNeighbors 隣接マスを読み込む
+func (c *Cell) SetNeighbors(n int, planes []*Plane) {
+	maxIdx := 2 * n
+	i := c.Coordinate[0] // 面
+	j := c.Coordinate[1] // 行
+	k := c.Coordinate[2] // 列
 
-func fetchLineFromPlane(plane *Plane, direction int, order int) []int {
-	lineLen := len(plane.Cells[0])
-	cellIDs := []int{}
-	rawIDs := []int{}
-	for i := 0; i < lineLen; i++ {
-		cellIDs = append(cellIDs, -1)
-		rawIDs = append(rawIDs, -1)
-	}
-	if direction == top {
-		for k, v := range plane.Cells[0] {
-			rawIDs[k] = v.ID
-		}
-	} else if direction == bottom {
-		for k, v := range plane.Cells[lineLen-1] {
-			rawIDs[k] = v.ID
-		}
-	} else if direction == right {
-		for k, v := range plane.Cells {
-			rawIDs[k] = v[lineLen-1].ID
-		}
-	} else if direction == left {
-		for k, v := range plane.Cells {
-			rawIDs[k] = v[0].ID
-		}
-	}
-
-	if order == 0 {
-		for k, v := range rawIDs {
-			cellIDs[k] = v
-		}
+	// 端っこ以外のマスの場合の上下処理
+	if j-1 >= 0 && j+1 <= maxIdx {
+		c.Neighbors[top] = &planes[i].Cells[j-1][k].ID
+		c.Neighbors[bottom] = &planes[i].Cells[j+1][k].ID
 	} else {
-		for k, v := range rawIDs {
-			cellIDs[(lineLen-1)-k] = v
+		// 上端の場合
+		if j-1 < 0 {
+			switch i {
+			case 0:
+				c.Neighbors[top] = &planes[3].Cells[maxIdx][k].ID
+			case 1:
+				c.Neighbors[top] = &planes[0].Cells[maxIdx][k].ID
+			case 2:
+				c.Neighbors[top] = &planes[1].Cells[maxIdx][k].ID
+			case 3:
+				c.Neighbors[top] = &planes[2].Cells[maxIdx][k].ID
+			case 4:
+				c.Neighbors[top] = &planes[3].Cells[k][0].ID
+			case 5:
+				c.Neighbors[top] = &planes[3].Cells[maxIdx-k][maxIdx].ID
+			}
+		} else {
+			c.Neighbors[top] = &planes[i].Cells[j-1][k].ID
+		}
+
+		// 下端の場合
+		if j+1 > 2*n {
+			switch i {
+			case 0:
+				c.Neighbors[bottom] = &planes[1].Cells[0][k].ID
+			case 1:
+				c.Neighbors[bottom] = &planes[2].Cells[0][k].ID
+			case 2:
+				c.Neighbors[bottom] = &planes[3].Cells[0][k].ID
+			case 3:
+				c.Neighbors[bottom] = &planes[0].Cells[0][k].ID
+			case 4:
+				c.Neighbors[bottom] = &planes[1].Cells[maxIdx-k][0].ID
+			case 5:
+				c.Neighbors[bottom] = &planes[1].Cells[k][maxIdx].ID
+			}
+		} else {
+			c.Neighbors[bottom] = &planes[i].Cells[j+1][k].ID
 		}
 	}
-	return cellIDs
+
+	// 端っこ以外のマスの場合の左右処理
+	if k-1 >= 0 && k+1 <= 2*n {
+		c.Neighbors[right] = &planes[i].Cells[j][k+1].ID
+		c.Neighbors[left] = &planes[i].Cells[j][k-1].ID
+	} else {
+		// 左端の場合
+		if k-1 < 0 {
+			switch i {
+			case 0:
+				c.Neighbors[left] = &planes[4].Cells[j][maxIdx].ID
+			case 1:
+				c.Neighbors[left] = &planes[4].Cells[maxIdx][maxIdx-j].ID
+			case 2:
+				c.Neighbors[left] = &planes[5].Cells[maxIdx-j][0].ID
+			case 3:
+				c.Neighbors[left] = &planes[4].Cells[0][j].ID
+			case 4:
+				c.Neighbors[left] = &planes[2].Cells[maxIdx-j][0].ID
+			case 5:
+				c.Neighbors[left] = &planes[0].Cells[j][maxIdx].ID
+			}
+		} else {
+			c.Neighbors[left] = &planes[i].Cells[j][k-1].ID
+		}
+
+		// 右端の場合
+		if k+1 > 2*n {
+			switch i {
+			case 0:
+				c.Neighbors[right] = &planes[5].Cells[j][0].ID
+			case 1:
+				c.Neighbors[right] = &planes[5].Cells[maxIdx][j].ID
+			case 2:
+				c.Neighbors[right] = &planes[4].Cells[maxIdx-j][maxIdx].ID
+			case 3:
+				c.Neighbors[right] = &planes[5].Cells[0][maxIdx-j].ID
+			case 4:
+				c.Neighbors[right] = &planes[0].Cells[j][0].ID
+			case 5:
+				c.Neighbors[right] = &planes[2].Cells[maxIdx-j][maxIdx].ID
+			}
+		} else {
+			c.Neighbors[right] = &planes[i].Cells[j][k+1].ID
+		}
+	}
+
 }
 
 // MapGenerator マップ生成サービス
-type MapGenerator struct{}
+type MapGenerator struct {
+	generated map[int]*Cell // TODO use DB
+}
 
 // Cell マップの１つの領域
 type Cell struct {
-	ID        int      `json:"id"`
-	Lat       int      `json:"lat"`       // 緯度 -90 ~ 90
-	Height    int      `json:"height"`    // 高度 -1000 1000
-	Neighbors []*int   `json:"neighbors"` // 隣接マスの番号
-	Attrs     []string `json:"attrs"`     // 付属物
-	Owner     int      `json:"owner"`     // 所有者
+	ID         int      `json:"id"`
+	Coordinate []int    `json:"coordinate"` // i,j,k
+	Lat        int      `json:"lat"`        // 緯度 -90 ~ 90
+	Height     int      `json:"height"`     // 高度 -1000 1000
+	Neighbors  []*int   `json:"neighbors"`  // 隣接マスの番号
+	Attrs      []string `json:"attrs"`      // 付属物
+	Owner      int      `json:"owner"`      // 所有者
+}
+
+type Current struct {
+	Center    *Cell   `json:"center"`
+	Neighbors []*Cell `json:"neighbors"` // 直接接している4マス
+	Indirects []*Cell `json:"indirects"` // 間接的に接している8マス
 }
 
 // Plane １平面
@@ -133,6 +166,7 @@ func (m *MapGenerator) Generate(n int) []*Plane { // 分割数. 2n+1
 			for k := 0; k < lineCells; k++ {
 				id := bias + k
 				target, _ := cells[id]
+				target.Coordinate = []int{i, j, k}
 				cellsOnPlane[j][k] = target
 			}
 		}
@@ -145,46 +179,45 @@ func (m *MapGenerator) Generate(n int) []*Plane { // 分割数. 2n+1
 		for j := 0; j < lineCells; j++ {
 			for k := 0; k < lineCells; k++ {
 				target := plane.Cells[j][k]
-				// 上端は他の面と接するので後で設定する
-				if j > 0 {
-					id := target.ID - lineCells // 1行上を隣接に設定
-					target.Neighbors[top] = &id
-				} else {
-					position := planePosition[i][top]
-					neighborLine := fetchLineFromPlane(planes[position[0]], position[1], position[2])
-					target.Neighbors[top] = &neighborLine[k]
-				}
 
-				if j < lineCells-1 {
-					id := target.ID + lineCells // 1行下を隣接に設定
-					target.Neighbors[bottom] = &id
-				} else {
-					position := planePosition[i][bottom]
-					neighborLine := fetchLineFromPlane(planes[position[0]], position[1], position[2])
-					target.Neighbors[bottom] = &neighborLine[k]
-				}
-
-				if k > 0 {
-					id := target.ID - 1 // 1つ左を隣接に設定
-					target.Neighbors[left] = &id
-				} else {
-					position := planePosition[i][left]
-					neighborLine := fetchLineFromPlane(planes[position[0]], position[1], position[2])
-					target.Neighbors[left] = &neighborLine[j]
-				}
-
-				if k < lineCells-1 {
-					id := target.ID + 1 // 1つ右を隣接に設定
-					target.Neighbors[right] = &id
-				} else {
-					position := planePosition[i][right]
-					neighborLine := fetchLineFromPlane(planes[position[0]], position[1], position[2])
-					target.Neighbors[right] = &neighborLine[j]
-				}
+				target.SetNeighbors(n, planes)
 			}
 		}
-
 	}
-	logrus.Infof("hoge")
+
+	generated := map[int]*Cell{}
+	for _, plane := range planes {
+		for _, line := range plane.Cells {
+			for _, cell := range line {
+				generated[cell.ID] = cell
+			}
+		}
+	}
+
+	m.generated = generated
+
 	return planes
+}
+
+func (m *MapGenerator) Get(id int) *Current {
+	res := &Current{
+		Center:    m.generated[id],
+		Neighbors: []*Cell{top: nil, bottom: nil, left: nil, right: nil},
+		Indirects: []*Cell{top: nil, bottom: nil, left: nil, right: nil, tr: nil, br: nil, bl: nil, tl: nil},
+	}
+	res.Neighbors[top] = m.generated[*res.Center.Neighbors[top]]
+	res.Neighbors[bottom] = m.generated[*res.Center.Neighbors[bottom]]
+	res.Neighbors[left] = m.generated[*res.Center.Neighbors[left]]
+	res.Neighbors[right] = m.generated[*res.Center.Neighbors[right]]
+	res.Indirects[top] = m.generated[*res.Neighbors[top].Neighbors[top]]          // うえのうえ
+	res.Indirects[tr] = m.generated[*res.Neighbors[top].Neighbors[right]]         // うえのみぎ
+	res.Indirects[bottom] = m.generated[*res.Neighbors[bottom].Neighbors[bottom]] // したのした
+	res.Indirects[bl] = m.generated[*res.Neighbors[bottom].Neighbors[left]]       // したのひだり
+	res.Indirects[right] = m.generated[*res.Neighbors[right].Neighbors[right]]    // 右の右
+	res.Indirects[br] = m.generated[*res.Neighbors[right].Neighbors[bottom]]      // 右の下
+	res.Indirects[left] = m.generated[*res.Neighbors[left].Neighbors[left]]       // 左の左
+	res.Indirects[tl] = m.generated[*res.Neighbors[left].Neighbors[top]]          // 左の↑
+
+	return res
+
 }
